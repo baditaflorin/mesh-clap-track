@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useVibration } from "@baditaflorin/mesh-common";
 import { createRoomSync } from "../sync/yjsRoom";
 import { createClockSync } from "../sync/clockSync";
 import { maybeFetchTurnCredentials } from "../sync/iceConfig";
@@ -30,6 +31,7 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
   const detectorRef = useRef<OnsetDetector | null>(null);
   const playedRef = useRef(new Set<string>());
   const recentClapTimesRef = useRef<number[]>([]);
+  const haptic = useVibration();
 
   // Push fresh sensitivity into detector if changed mid-session.
   useEffect(() => {
@@ -92,7 +94,7 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
         playDrum(ctx, slot, ctx.currentTime);
         playedRef.current.add(`${loopId}:${ev.id}`);
         recentClapTimesRef.current.push(t);
-        if (navigator.vibrate) navigator.vibrate(20);
+        haptic.vibrate(20);
       }
 
       // Prune recent clap times to last 5s, compute rate

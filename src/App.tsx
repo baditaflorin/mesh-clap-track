@@ -3,6 +3,7 @@ import { ClapTrack } from "./features/clap/ClapTrack";
 import { ALL_SLOTS, type Slot } from "./features/clap/drums";
 import { SettingsDrawer } from "./features/settings/SettingsDrawer";
 import { appConfig } from "./shared/config";
+import { InviteShareButton } from "@baditaflorin/mesh-common";
 
 const STORAGE = {
   room: `${appConfig.storagePrefix}:room`,
@@ -46,6 +47,7 @@ export function App() {
     <div className="app-root">
       <ClapTrack roomId={roomId} slot={slot} sensitivity={sensitivity} />
 
+      <InviteShareButton appName={appConfig.appName} roomId={roomId} />
       <button
         type="button"
         className="settings-fab"

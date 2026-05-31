@@ -1,6 +1,6 @@
 {
   "name": "mesh-clap-track",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Peer-to-peer mesh: real claps from your microphone become a synced drum loop. Each phone is a different drum sound.",
   "type": "module",
   "private": false,
@@ -37,6 +37,7 @@
     "@baditaflorin/mesh-common": "file:../mesh-common"
   },
   "devDependencies": {
+    "@types/node": "^22.10.0",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

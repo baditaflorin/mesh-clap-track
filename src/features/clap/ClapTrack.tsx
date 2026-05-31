@@ -18,6 +18,10 @@ type Props = {
 
 export function ClapTrack({ roomId, slot, sensitivity }: Props) {
   const [armed, setArmed] = useState(false);
+  // micActive=false means the user joined without granting the mic: the loop
+  // still syncs + plays, but onsets come from the manual "Tap" button instead
+  // of live audio. Keeps the app usable on desktop and drivable headless.
+  const [micActive, setMicActive] = useState(false);
   const [phase, setPhase] = useState(0);
   const [taps, setTaps] = useState<TapEvent[]>([]);
   const [peers, setPeers] = useState(0);
@@ -75,26 +79,27 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
     const tick = () => {
       const ctx = audioCtxRef.current;
       const detector = detectorRef.current;
-      if (!ctx || !detector) {
-        frame = requestAnimationFrame(tick);
-        return;
-      }
+      // The loop runs even without a mic (joined-without-mic / desktop): phase,
+      // peer count, sync and visual playback still work; only live onset
+      // detection needs the detector. Manual taps come from the Tap button.
       const t = mesh.clock.meshNow();
       const loopT = ((t % LOOP_MS) + LOOP_MS) % LOOP_MS;
       setPhase(loopT / LOOP_MS);
       const loopId = Math.floor(t / LOOP_MS);
 
-      // Onset detection
-      const state = detector.step(t);
-      setMeta({ rms: state.rms, threshold: state.threshold });
+      // Onset detection (mic path only)
+      if (ctx && detector) {
+        const state = detector.step(t);
+        setMeta({ rms: state.rms, threshold: state.threshold });
 
-      if (state.fired) {
-        const ev: TapEvent = { slot, dt: loopT, id: crypto.randomUUID() };
-        mesh.events.push([ev]);
-        playDrum(ctx, slot, ctx.currentTime);
-        playedRef.current.add(`${loopId}:${ev.id}`);
-        recentClapTimesRef.current.push(t);
-        haptic.vibrate(20);
+        if (state.fired) {
+          const ev: TapEvent = { slot, dt: loopT, id: crypto.randomUUID() };
+          mesh.events.push([ev]);
+          playDrum(ctx, slot, ctx.currentTime);
+          playedRef.current.add(`${loopId}:${ev.id}`);
+          recentClapTimesRef.current.push(t);
+          haptic.vibrate(20);
+        }
       }
 
       // Prune recent clap times to last 5s, compute rate
@@ -104,7 +109,9 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
       }
       setDetectionRate(recentClapTimesRef.current.length / 5);
 
-      // Scheduled playback of all taps (incl. peers')
+      // Scheduled playback of all taps (incl. peers'). Audio only when a ctx
+      // exists; without one we still mark events played so the loop visual
+      // stays consistent.
       const lookahead = 60;
       for (const ev of taps) {
         const evKey = `${loopId}:${ev.id}`;
@@ -112,7 +119,7 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
         const ahead = ev.dt - loopT;
         if (ahead >= -10 && ahead <= lookahead) {
           playedRef.current.add(evKey);
-          playDrum(ctx, ev.slot, ctx.currentTime + Math.max(0, ahead / 1000));
+          if (ctx) playDrum(ctx, ev.slot, ctx.currentTime + Math.max(0, ahead / 1000));
         }
       }
       if (loopT < 100) {
@@ -144,10 +151,37 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
       streamRef.current = stream;
       analyserRef.current = analyser;
       detectorRef.current = detector;
+      setMicActive(true);
       setArmed(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
+  };
+
+  // Join the mesh without granting the mic. The loop still syncs and the
+  // user taps a beat manually with the Tap button. Keeps the app usable on
+  // desktop / when the mic is denied, and makes the sync drivable headless.
+  const onJoinWithoutMic = () => {
+    setMicActive(false);
+    setArmed(true);
+  };
+
+  // Drop a tap at the current loop position into the shared Yjs array. Used
+  // by the manual Tap button (no-mic fallback) — identical write path to the
+  // mic onset, so it propagates to every peer.
+  const onTap = () => {
+    if (!mesh) return;
+    const t = mesh.clock.meshNow();
+    const loopT = ((t % LOOP_MS) + LOOP_MS) % LOOP_MS;
+    const ev: TapEvent = { slot, dt: loopT, id: crypto.randomUUID() };
+    mesh.events.push([ev]);
+    const ctx = audioCtxRef.current;
+    if (ctx) {
+      playedRef.current.add(`${Math.floor(t / LOOP_MS)}:${ev.id}`);
+      playDrum(ctx, slot, ctx.currentTime);
+    }
+    recentClapTimesRef.current.push(t);
+    haptic.vibrate(20);
   };
 
   const onClear = () => {
@@ -176,6 +210,9 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
           Allow mic &amp; connect
         </button>
         {error && <p className="clap-error">Mic error: {error}</p>}
+        <button type="button" className="clap-arm-nomic" onClick={onJoinWithoutMic}>
+          Join without mic — tap the beat by hand
+        </button>
         <p className="clap-hint">Pick a different drum per phone in Settings.</p>
       </div>
     );
@@ -223,22 +260,41 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
         </div>
       </div>
 
-      <div className="clap-mic">
-        <div className="clap-mic-bar">
-          <div
-            className="clap-mic-bar-fill"
-            style={{ width: `${rmsPct}%`, background: SLOT_INFO[slot].color }}
-          />
-          <div className="clap-mic-bar-threshold" style={{ left: `${thrPct}%` }} />
+      {micActive ? (
+        <div className="clap-mic">
+          <div className="clap-mic-bar">
+            <div
+              className="clap-mic-bar-fill"
+              style={{ width: `${rmsPct}%`, background: SLOT_INFO[slot].color }}
+            />
+            <div className="clap-mic-bar-threshold" style={{ left: `${thrPct}%` }} />
+          </div>
+          <p className="clap-mic-label">
+            {SLOT_INFO[slot].emoji} you are <strong>{SLOT_INFO[slot].label}</strong> ·{" "}
+            {detectionRate.toFixed(1)} claps/s
+          </p>
+          {detectionRate > 4 && (
+            <p className="clap-mic-warn">High detection rate — lower sensitivity in Settings.</p>
+          )}
         </div>
+      ) : (
         <p className="clap-mic-label">
-          {SLOT_INFO[slot].emoji} you are <strong>{SLOT_INFO[slot].label}</strong> ·{" "}
-          {detectionRate.toFixed(1)} claps/s
+          {SLOT_INFO[slot].emoji} you are <strong>{SLOT_INFO[slot].label}</strong> · tap the beat by
+          hand
         </p>
-        {detectionRate > 4 && (
-          <p className="clap-mic-warn">High detection rate — lower sensitivity in Settings.</p>
-        )}
-      </div>
+      )}
+
+      <button
+        type="button"
+        className="clap-tap"
+        data-testid="clap-tap"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTap();
+        }}
+      >
+        Tap {SLOT_INFO[slot].emoji}
+      </button>
 
       <button
         type="button"

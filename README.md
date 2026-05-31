@@ -11,6 +11,8 @@
 
 Pick a drum (kick, snare, hi-hat, clap, cowbell, rim). Open the link on every phone. Tap **Allow mic & connect.** Now clap. Every phone in the room listens to its own mic, detects the sharp transient, and writes a tap into a 30-second rolling loop synced via mesh-time. The loop replays on every phone. The room has accidentally composed a beat together.
 
+No mic — or on a desktop without one? Tap **Join without mic** and use the on-screen **Tap** button to drop beats by hand. The taps go through the exact same shared Yjs loop, so they sync to every phone identically. (This is also the path the cross-peer e2e test drives, since a live mic transient can't be produced headless.)
+
 ## How it works
 
 - Each phone joins a shared **Yjs document** over **y-webrtc** via my self-hosted signaling server.

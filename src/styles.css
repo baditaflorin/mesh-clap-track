@@ -139,6 +139,26 @@ body,
   z-index: 2;
 }
 
+.clap-solo-hint {
+  position: absolute;
+  top: calc(max(env(safe-area-inset-top), 3.5rem) + 76px);
+  left: 1.25rem;
+  right: 1.25rem;
+  margin: 0 auto;
+  max-width: 26rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 2;
+}
+
 .clap-loop-track {
   position: relative;
   width: 100%;

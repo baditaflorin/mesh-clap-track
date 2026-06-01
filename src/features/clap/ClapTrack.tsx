@@ -237,6 +237,14 @@ export function ClapTrack({ roomId, slot, sensitivity }: Props) {
         {peers + 1} phones · {taps.length} taps in loop
       </div>
 
+      {peers === 0 && (
+        <p className="clap-solo-hint">
+          You&rsquo;re the only phone here. Open this page on another phone (or a second browser
+          tab) in the same room to build the beat together — pick a different drum on each in ⚙
+          Settings, or use 📡 to share a join link.
+        </p>
+      )}
+
       <div className="clap-loop">
         <div className="clap-loop-track">
           {otherTaps.map((t) => (

@@ -1,5 +1,6 @@
 export const appConfig = {
   appName: "mesh-clap-track",
+  breadcrumbs: false,
   storagePrefix: "mesh-clap-track",
   description:
     "Peer-to-peer mesh: real claps from your microphone become a synced drum loop. Each phone is a different drum sound.",
